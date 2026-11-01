@@ -16,7 +16,7 @@ class ProductController extends Controller
     // Public List
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['modules', 'categories', 'showcases'])
+        $products = Product::with(['modules', 'categories', 'showcases', 'images'])
             ->where('is_active', true)
             ->latest()
             ->paginate($request->integer('per_page', 12));
@@ -30,7 +30,7 @@ class ProductController extends Controller
     // Public Detail (Customer Customizer)
     public function show(string $slug): JsonResponse
     {
-        $product = Product::with(['modules', 'categories', 'showcases'])
+        $product = Product::with(['modules', 'categories', 'showcases', 'images'])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
@@ -44,7 +44,7 @@ class ProductController extends Controller
     // Admin List
     public function adminIndex(Request $request): JsonResponse
     {
-        $query = Product::with(['modules', 'categories', 'showcases'])->latest();
+        $query = Product::with(['modules', 'categories', 'showcases', 'images'])->latest();
 
         if ($request->filled('category_id')) {
             $catId = $request->integer('category_id');
@@ -131,6 +131,18 @@ class ProductController extends Controller
                 $product->showcases()->sync($validated['showcase_ids']);
             }
 
+            // Upload Multiple Image Screenshots / Carousels
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $imgIdx => $imgFile) {
+                    $imgPath = $imgFile->store('product_galleries', 'public');
+                    \App\Models\ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_url' => $imgPath,
+                        'sort_order' => $imgIdx,
+                    ]);
+                }
+            }
+
             if (!empty($validated['modules'])) {
                 foreach ($validated['modules'] as $idx => $mod) {
                     ProductModule::create([
@@ -144,7 +156,7 @@ class ProductController extends Controller
                 }
             }
 
-            return $product->load(['modules', 'categories', 'showcases']);
+            return $product->load(['modules', 'categories', 'showcases', 'images']);
         });
 
         return response()->json([
@@ -207,6 +219,28 @@ class ProductController extends Controller
                 $product->thumbnail = $request->file('thumbnail')->store('products', 'public');
             }
 
+            // Multi Category Sync
+            if (isset($validated['category_ids'])) {
+                $product->categories()->sync($validated['category_ids']);
+            }
+
+            // Showcase Sync
+            if (isset($validated['showcase_ids'])) {
+                $product->showcases()->sync($validated['showcase_ids']);
+            }
+
+            // Upload Multiple Image Screenshots / Carousels
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $imgIdx => $imgFile) {
+                    $imgPath = $imgFile->store('product_galleries', 'public');
+                    \App\Models\ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_url' => $imgPath,
+                        'sort_order' => $imgIdx,
+                    ]);
+                }
+            }
+
             $product->save();
 
             // Sync Modules / Toppings jika dikirimkan
@@ -243,7 +277,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Produk dan modul berhasil diperbarui',
-            'data' => $product->fresh(['modules']),
+            'data' => $product->fresh(['modules', 'categories', 'showcases', 'images']),
         ]);
     }
 

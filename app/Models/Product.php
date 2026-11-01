@@ -50,6 +50,11 @@ class Product extends Model
             ->withTimestamps();
     }
 
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order', 'asc');
+    }
+
     public function categoryItem()
     {
         return $this->belongsTo(Category::class, 'category_id');
