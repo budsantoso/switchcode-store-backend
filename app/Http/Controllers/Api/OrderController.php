@@ -132,6 +132,57 @@ class OrderController extends Controller
     }
 
     /**
+     * Admin/Owner: List Orders for Tracking
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Order::with('items')->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('search')) {
+            $s = $request->string('search');
+            $query->where(function ($q) use ($s) {
+                $q->where('order_number', 'like', "%{$s}%")
+                  ->orWhere('customer_name', 'like', "%{$s}%")
+                  ->orWhere('customer_email', 'like', "%{$s}%");
+            });
+        }
+
+        $orders = $query->paginate($request->integer('per_page', 20));
+
+        return response()->json([
+            'success' => true,
+            'data' => $orders
+        ]);
+    }
+
+    /**
+     * Admin/Owner: Update Order Status
+     */
+    public function updateStatus(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,paid,processing,completed,cancelled',
+        ]);
+
+        $order = Order::findOrFail($id);
+        $order->status = $validated['status'];
+        if ($validated['status'] === 'paid' && !$order->paid_at) {
+            $order->paid_at = now();
+        }
+        $order->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status pesanan berhasil diperbarui',
+            'data' => $order
+        ]);
+    }
+
+    /**
      * Webhook Handler Midtrans
      */
     public function midtransWebhook(Request $request)

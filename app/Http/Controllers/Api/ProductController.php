@@ -44,9 +44,21 @@ class ProductController extends Controller
     // Admin List
     public function adminIndex(Request $request): JsonResponse
     {
-        $products = Product::with('modules')
-            ->latest()
-            ->paginate($request->integer('per_page', 15));
+        $query = Product::with(['modules', 'categoryItem'])->latest();
+
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->integer('category_id'));
+        }
+
+        if ($request->filled('search')) {
+            $s = $request->string('search');
+            $query->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('summary', 'like', "%{$s}%");
+            });
+        }
+
+        $products = $query->paginate($request->integer('per_page', 15));
 
         return response()->json([
             'success' => true,
@@ -58,6 +70,8 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'category_id' => 'nullable|exists:categories,id',
+            'category' => 'nullable|string|max:100',
             'name' => 'required|string|max:255',
             'summary' => 'nullable|string',
             'description' => 'nullable|string',
@@ -86,6 +100,8 @@ class ProductController extends Controller
             }
 
             $product = Product::create([
+                'category_id' => $validated['category_id'] ?? null,
+                'category' => $validated['category'] ?? null,
                 'name' => $validated['name'],
                 'slug' => $slug,
                 'summary' => $validated['summary'] ?? null,

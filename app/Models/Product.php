@@ -12,6 +12,8 @@ class Product extends Model
     use HasFactory;
 
     protected $fillable = [
+        'category_id',
+        'category',
         'name',
         'slug',
         'summary',
@@ -31,6 +33,11 @@ class Product extends Model
     public function modules(): HasMany
     {
         return $this->hasMany(ProductModule::class)->orderBy('sort_order', 'asc');
+    }
+
+    public function categoryItem()
+    {
+        return $this->belongsTo(Category::class, 'category_id');
     }
 
     public function getThumbnailUrlAttribute(): ?string

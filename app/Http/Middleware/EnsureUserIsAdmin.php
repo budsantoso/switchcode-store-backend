@@ -12,10 +12,10 @@ class EnsureUserIsAdmin
     {
         $user = $request->user();
 
-        if (!$user || $user->role !== 'admin') {
+        if (!$user || !in_array($user->role, ['admin', 'owner'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Admin access required.',
+                'message' => 'Unauthorized. Admin or Owner access required.',
             ], 403);
         }
 

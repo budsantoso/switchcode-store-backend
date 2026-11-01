@@ -14,6 +14,16 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // 0. Owner Default
+        User::firstOrCreate(
+            ['email' => 'owner@switchcode.id'],
+            [
+                'name' => 'Switch Code Owner',
+                'password' => Hash::make('OwnerSwitchCode2026!'),
+                'role' => User::ROLE_OWNER,
+            ]
+        );
+
         // 1. Admin Default
         $admin = User::firstOrCreate(
             ['email' => 'admin@switchcode.id'],

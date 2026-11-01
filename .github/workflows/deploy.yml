@@ -82,5 +82,6 @@ jobs:
       - name: Trigger Remote Unzip & Migrations
         run: |
           curl -s -f "https://api-store.switchcode.id/deploy_unzip.php?key=SwitchCodeDeploy2026SecretKey" || true
-          curl -s "https://api-store.switchcode.id/artisan_runner.php?key=SwitchCodeDeploy2026SecretKey&cmd=migrate:fresh" || true
+          curl -s "https://api-store.switchcode.id/artisan_runner.php?key=SwitchCodeDeploy2026SecretKey&cmd=migrate" || true
+          curl -s "https://api-store.switchcode.id/artisan_runner.php?key=SwitchCodeDeploy2026SecretKey&cmd=db:seed" || true
           curl -s "https://api-store.switchcode.id/artisan_runner.php?key=SwitchCodeDeploy2026SecretKey&cmd=storage:link" || true
