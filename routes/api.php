@@ -27,6 +27,7 @@ Route::middleware('throttle:60,1')->group(function () {
 
     // Checkout & Order Tracking
     Route::post('/checkout', [OrderController::class, 'checkout']);
+    Route::post('/orders/checkout', [OrderController::class, 'checkout']);
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
 
     // Payment Gateway Webhook
