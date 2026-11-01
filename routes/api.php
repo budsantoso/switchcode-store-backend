@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OwnerController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ShowcaseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,8 +14,12 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 Route::middleware('throttle:60,1')->group(function () {
-    // Kategori Etalase
+    // Kategori
     Route::get('/categories', [CategoryController::class, 'index']);
+
+    // Etalase (Showcases)
+    Route::get('/showcases', [ShowcaseController::class, 'index']);
+    Route::get('/showcases/{slug}', [ShowcaseController::class, 'show']);
 
     // Katalog Produk Toko
     Route::get('/products', [ProductController::class, 'index']);
@@ -58,11 +63,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::match(['put', 'post'], '/products/{id}', [ProductController::class, 'update']);
         Route::delete('/products/{id}', [ProductController::class, 'destroy']);
 
-        // Kategori Etalase
+        // Kategori
         Route::get('/categories', [CategoryController::class, 'index']);
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::put('/categories/{id}', [CategoryController::class, 'update']);
         Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+
+        // Etalase Toko (Showcases)
+        Route::get('/showcases', [ShowcaseController::class, 'adminIndex']);
+        Route::post('/showcases', [ShowcaseController::class, 'store']);
+        Route::put('/showcases/{id}', [ShowcaseController::class, 'update']);
+        Route::delete('/showcases/{id}', [ShowcaseController::class, 'destroy']);
 
         // Order Tracking
         Route::get('/orders', [OrderController::class, 'adminIndex']);

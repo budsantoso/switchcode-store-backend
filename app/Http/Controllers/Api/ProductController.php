@@ -16,7 +16,7 @@ class ProductController extends Controller
     // Public List
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with('modules')
+        $products = Product::with(['modules', 'categories', 'showcases'])
             ->where('is_active', true)
             ->latest()
             ->paginate($request->integer('per_page', 12));
@@ -30,7 +30,7 @@ class ProductController extends Controller
     // Public Detail (Customer Customizer)
     public function show(string $slug): JsonResponse
     {
-        $product = Product::with('modules')
+        $product = Product::with(['modules', 'categories', 'showcases'])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
@@ -44,10 +44,20 @@ class ProductController extends Controller
     // Admin List
     public function adminIndex(Request $request): JsonResponse
     {
-        $query = Product::with(['modules', 'categoryItem'])->latest();
+        $query = Product::with(['modules', 'categories', 'showcases'])->latest();
 
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
+            $catId = $request->integer('category_id');
+            $query->whereHas('categories', function ($q) use ($catId) {
+                $q->where('categories.id', $catId);
+            });
+        }
+
+        if ($request->filled('showcase_id')) {
+            $showId = $request->integer('showcase_id');
+            $query->whereHas('showcases', function ($q) use ($showId) {
+                $q->where('showcases.id', $showId);
+            });
         }
 
         if ($request->filled('search')) {
@@ -58,7 +68,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->paginate($request->integer('per_page', 15));
+        $products = $query->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,
@@ -66,12 +76,14 @@ class ProductController extends Controller
         ]);
     }
 
-    // Admin Create Product + Modules/Toppings
+    // Admin Create Product + Modules/Toppings + Multi-Category
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'category_id' => 'nullable|exists:categories,id',
-            'category' => 'nullable|string|max:100',
+            'category_ids' => 'nullable|array',
+            'category_ids.*' => 'exists:categories,id',
+            'showcase_ids' => 'nullable|array',
+            'showcase_ids.*' => 'exists:showcases,id',
             'name' => 'required|string|max:255',
             'summary' => 'nullable|string',
             'description' => 'nullable|string',
@@ -100,8 +112,6 @@ class ProductController extends Controller
             }
 
             $product = Product::create([
-                'category_id' => $validated['category_id'] ?? null,
-                'category' => $validated['category'] ?? null,
                 'name' => $validated['name'],
                 'slug' => $slug,
                 'summary' => $validated['summary'] ?? null,
@@ -110,6 +120,16 @@ class ProductController extends Controller
                 'thumbnail' => $thumbnailPath,
                 'is_active' => $request->boolean('is_active', true),
             ]);
+
+            // Sync Multi Kategori
+            if (!empty($validated['category_ids'])) {
+                $product->categories()->sync($validated['category_ids']);
+            }
+
+            // Sync ke Etalase
+            if (!empty($validated['showcase_ids'])) {
+                $product->showcases()->sync($validated['showcase_ids']);
+            }
 
             if (!empty($validated['modules'])) {
                 foreach ($validated['modules'] as $idx => $mod) {
@@ -124,12 +144,12 @@ class ProductController extends Controller
                 }
             }
 
-            return $product->load('modules');
+            return $product->load(['modules', 'categories', 'showcases']);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Produk dan modul berhasil disimpan',
+            'message' => 'Produk berhasil disimpan ke etalase',
             'data' => $product,
         ], 201);
     }

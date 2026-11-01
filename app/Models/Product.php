@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
@@ -33,6 +34,20 @@ class Product extends Model
     public function modules(): HasMany
     {
         return $this->hasMany(ProductModule::class)->orderBy('sort_order', 'asc');
+    }
+
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'category_product')
+            ->withTimestamps();
+    }
+
+    public function showcases(): BelongsToMany
+    {
+        return $this->belongsToMany(Showcase::class, 'product_showcase')
+            ->withPivot('sort_order')
+            ->orderByPivot('sort_order', 'asc')
+            ->withTimestamps();
     }
 
     public function categoryItem()
