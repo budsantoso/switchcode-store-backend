@@ -16,10 +16,46 @@ class ProductController extends Controller
     // Public List
     public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['modules', 'categories', 'showcases', 'images'])
-            ->where('is_active', true)
-            ->latest()
-            ->paginate($request->integer('per_page', 12));
+        $query = Product::with(['modules', 'categories', 'showcases', 'images'])
+            ->where('is_active', true);
+
+        // Filter Search Keyword (Shopee/Tokopedia style)
+        if ($request->filled('search')) {
+            $keyword = trim($request->string('search'));
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                  ->orWhere('summary', 'like', "%{$keyword}%")
+                  ->orWhere('description', 'like', "%{$keyword}%");
+            });
+        }
+
+        // Filter Category
+        if ($request->filled('category_id')) {
+            $catId = $request->integer('category_id');
+            $query->whereHas('categories', function ($q) use ($catId) {
+                $q->where('categories.id', $catId);
+            });
+        }
+
+        // Filter Showcase (Etalase)
+        if ($request->filled('showcase_id')) {
+            $showcaseId = $request->integer('showcase_id');
+            $query->whereHas('showcases', function ($q) use ($showcaseId) {
+                $q->where('showcases.id', $showcaseId);
+            });
+        }
+
+        // Sorting: latest, price_asc, price_desc, rating
+        $sort = $request->string('sort', 'latest');
+        if ($sort === 'price_asc') {
+            $query->orderBy('base_price', 'asc');
+        } elseif ($sort === 'price_desc') {
+            $query->orderBy('base_price', 'desc');
+        } else {
+            $query->latest();
+        }
+
+        $products = $query->paginate($request->integer('per_page', 24));
 
         return response()->json([
             'success' => true,
@@ -31,7 +67,12 @@ class ProductController extends Controller
     public function show(string $slug): JsonResponse
     {
         $product = Product::with(['modules', 'categories', 'showcases', 'images'])
-            ->where('slug', $slug)
+            ->where(function ($q) use ($slug) {
+                $q->where('slug', $slug);
+                if (is_numeric($slug)) {
+                    $q->orWhere('id', (int) $slug);
+                }
+            })
             ->where('is_active', true)
             ->firstOrFail();
 

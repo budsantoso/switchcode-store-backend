@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
                 'summary' => 'Website profesional modern untuk branding perusahaan & instansi dengan kecepatan tinggi.',
                 'description' => 'Paket website korporat lengkap berbasis Next.js dan Tailwind CSS, SEO ready, mobile-first, dan terintegrasi sistem CMS.',
                 'base_price' => 2500000,
+                'thumbnail' => 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=800&auto=format&fit=crop',
                 'is_active' => true,
             ]
         );
@@ -78,6 +79,7 @@ class DatabaseSeeder extends Seeder
                 'summary' => 'Aplikasi internal custom untuk pencatatan inventaris, transaksi, dan pelaporan otomatis.',
                 'description' => 'Solusi digitalisasi alur kerja perusahaan berbasis web. Aman, modular, dan dapat dikembangkan sesuai kebutuhan SOP bisnis.',
                 'base_price' => 5000000,
+                'thumbnail' => 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=800&auto=format&fit=crop',
                 'is_active' => true,
             ]
         );
@@ -95,6 +97,35 @@ class DatabaseSeeder extends Seeder
                 array_merge($mod, ['sort_order' => $idx])
             );
         }
+
+        // 4b. Category & Showcase Seeder (Shopee / Tokopedia Structure)
+        $catWeb = \App\Models\Category::firstOrCreate(
+            ['slug' => 'website-development'],
+            ['name' => 'Website Development', 'description' => 'Solusi website company profile, landing page, dan portal web']
+        );
+        $catSaaS = \App\Models\Category::firstOrCreate(
+            ['slug' => 'saas-erp-system'],
+            ['name' => 'SaaS & ERP System', 'description' => 'Aplikasi internal bisnis, sistem operasional, dan dashboard analytics']
+        );
+        $catAPI = \App\Models\Category::firstOrCreate(
+            ['slug' => 'api-backend-service'],
+            ['name' => 'API & Backend Service', 'description' => 'Backend boilerplate, gateway, dan modul integrasi payment']
+        );
+
+        $showcaseBestSeller = \App\Models\Showcase::firstOrCreate(
+            ['slug' => 'best-seller'],
+            ['name' => '🔥 Paling Laris (Best Seller)', 'description' => 'Produk dengan volume pesanan tertinggi bulan ini', 'is_active' => true]
+        );
+        $showcasePromo = \App\Models\Showcase::firstOrCreate(
+            ['slug' => 'promo-spesial'],
+            ['name' => '⚡ Promo Kilat SwitchCode', 'description' => 'Diskon terbatas untuk pengembangan proyek digital', 'is_active' => true]
+        );
+
+        $product1->categories()->syncWithoutDetaching([$catWeb->id]);
+        $product1->showcases()->syncWithoutDetaching([$showcaseBestSeller->id, $showcasePromo->id]);
+
+        $product2->categories()->syncWithoutDetaching([$catSaaS->id, $catAPI->id]);
+        $product2->showcases()->syncWithoutDetaching([$showcaseBestSeller->id]);
 
         // 5. Dummy Article
         Article::firstOrCreate(
