@@ -203,12 +203,15 @@ class OrderController extends Controller
     }
 
     /**
-     * Webhook Handler Midtrans
+     * Webhook Handler Midtrans (Hardened with SHA512 Signature & Idempotency Lock)
      */
     public function midtransWebhook(Request $request)
     {
         $notif = $request->all();
         $orderId = $notif['order_id'] ?? null;
+        $statusCode = $notif['status_code'] ?? null;
+        $grossAmount = $notif['gross_amount'] ?? null;
+        $signatureKey = $notif['signature_key'] ?? null;
         $transactionStatus = $notif['transaction_status'] ?? null;
         $fraudStatus = $notif['fraud_status'] ?? null;
 
@@ -216,29 +219,45 @@ class OrderController extends Controller
             return response()->json(['message' => 'Invalid order id'], 400);
         }
 
-        $order = Order::where('order_number', $orderId)->first();
-        if (!$order) {
-            return response()->json(['message' => 'Order not found'], 404);
+        // 1. Signature Verification
+        $serverKey = config('services.midtrans.server_key', env('MIDTRANS_SERVER_KEY'));
+        if ($serverKey && $signatureKey) {
+            $expectedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+            if (!hash_equals($expectedSignature, $signatureKey)) {
+                return response()->json(['message' => 'Invalid signature key'], 403);
+            }
         }
 
-        if ($transactionStatus == 'capture') {
-            if ($fraudStatus == 'challenge') {
-                $order->status = 'challenge';
-            } else if ($fraudStatus == 'accept') {
+        return DB::transaction(function () use ($orderId, $transactionStatus, $fraudStatus) {
+            $order = Order::where('order_number', $orderId)->lockForUpdate()->first();
+            if (!$order) {
+                return response()->json(['message' => 'Order not found'], 404);
+            }
+
+            // Idempotency: Jika status sudah final 'paid', abaikan webhook duplikat
+            if ($order->status === 'paid' && in_array($transactionStatus, ['settlement', 'capture'])) {
+                return response()->json(['success' => true, 'message' => 'Already settled']);
+            }
+
+            if ($transactionStatus == 'capture') {
+                if ($fraudStatus == 'challenge') {
+                    $order->status = 'challenge';
+                } else if ($fraudStatus == 'accept') {
+                    $order->status = 'paid';
+                    $order->paid_at = now();
+                }
+            } else if ($transactionStatus == 'settlement') {
                 $order->status = 'paid';
                 $order->paid_at = now();
+            } else if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                $order->status = 'cancelled';
+            } else if ($transactionStatus == 'pending') {
+                $order->status = 'pending';
             }
-        } else if ($transactionStatus == 'settlement') {
-            $order->status = 'paid';
-            $order->paid_at = now();
-        } else if (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
-            $order->status = 'cancelled';
-        } else if ($transactionStatus == 'pending') {
-            $order->status = 'pending';
-        }
 
-        $order->save();
+            $order->save();
 
-        return response()->json(['success' => true]);
+            return response()->json(['success' => true]);
+        });
     }
 }

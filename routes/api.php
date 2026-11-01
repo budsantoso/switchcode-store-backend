@@ -26,8 +26,10 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::get('/products/{slug}', [ProductController::class, 'show']);
 
     // Checkout & Order Tracking
-    Route::post('/checkout', [OrderController::class, 'checkout']);
-    Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+    Route::middleware('throttle:checkout')->group(function () {
+        Route::post('/checkout', [OrderController::class, 'checkout']);
+        Route::post('/orders/checkout', [OrderController::class, 'checkout']);
+    });
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
 
     // Payment Gateway Webhook
@@ -35,14 +37,23 @@ Route::middleware('throttle:60,1')->group(function () {
 
     // Serve public storage images via API route
     Route::get('/storage/{path}', function ($path) {
-        $fullPath = storage_path('app/public/' . $path);
+        // Path traversal & file extension hardening against php2shell / web shell
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+        $cleanPath = ltrim(str_replace(['../', '..\\'], '', $path), '/');
+        $ext = strtolower(pathinfo($cleanPath, PATHINFO_EXTENSION));
+
+        if (!in_array($ext, $allowedExtensions)) {
+            abort(403, 'Akses file dibatasi.');
+        }
+
+        $fullPath = storage_path('app/public/' . $cleanPath);
         if (!file_exists($fullPath)) {
             abort(404);
         }
 
         $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
         return response()->file($fullPath, ['Content-Type' => $mimeType]);
-    })->where('path', '.*');
+        })->where('path', '.*');
 });
 
 /*
@@ -51,8 +62,8 @@ Route::middleware('throttle:60,1')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::get('/auth/captcha', [AuthController::class, 'getCaptcha']);
-Route::post('/auth/request-otp', [AuthController::class, 'requestOtp']);
-Route::post('/auth/register', [AuthController::class, 'register']);
+Route::middleware('throttle:otp_burst')->post('/auth/request-otp', [AuthController::class, 'requestOtp']);
+Route::middleware('throttle:register')->post('/auth/register', [AuthController::class, 'register']);
 Route::middleware('throttle:login')->post('/auth/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {

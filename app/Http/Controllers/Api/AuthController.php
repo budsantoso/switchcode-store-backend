@@ -96,9 +96,11 @@ class AuthController extends Controller
 
         $challenge = AuthChallenge::where('captcha_token', $validated['captcha_token'])
             ->where('email', $validated['email'])
+            ->where('is_verified', false)
+            ->lockForUpdate()
             ->first();
 
-        if (!$challenge || $challenge->otp_code !== trim($validated['otp_code'])) {
+        if (!$challenge || !hash_equals((string) $challenge->otp_code, (string) trim($validated['otp_code']))) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode OTP salah atau tidak cocok dengan akun ini.'
@@ -112,14 +114,15 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Invalidasi challenge seketika (Anti replay attack)
+        $challenge->update(['is_verified' => true]);
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => $validated['password'],
             'role' => User::ROLE_CUSTOMER,
         ]);
-
-        $challenge->update(['is_verified' => true]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
