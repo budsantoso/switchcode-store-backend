@@ -46,9 +46,9 @@ jobs:
           DB_CONNECTION=mysql
           DB_HOST=127.0.0.1
           DB_PORT=3306
-          DB_DATABASE=swit1503_store
-          DB_USERNAME=swit1503_admin
-          DB_PASSWORD=SwitchCode2026AdminDBPass
+          DB_DATABASE=${{ secrets.DB_DATABASE || 'swit1503_store' }}
+          DB_USERNAME=${{ secrets.DB_USERNAME || 'swit1503_admin' }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD || 'SwitchCode2026AdminDBPass' }}
 
           SESSION_DRIVER=database
           SESSION_LIFETIME=120
