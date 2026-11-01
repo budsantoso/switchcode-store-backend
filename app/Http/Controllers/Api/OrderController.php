@@ -19,13 +19,15 @@ class OrderController extends Controller
     public function checkout(Request $request)
     {
         $validated = $request->validate([
-            'customer_name' => 'required|string|max:255',
-            'customer_email' => 'required|email|max:255',
-            'customer_phone' => 'nullable|string|max:20',
+            'customer_name' => 'required|string|max:100',
+            'customer_email' => 'required|email|max:100',
+            'customer_phone' => 'nullable|string|max:30',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.topping_ids' => 'nullable|array',
+            'items.*.topping_ids.*' => 'integer',
         ]);
 
         return DB::transaction(function () use ($validated) {
@@ -34,15 +36,33 @@ class OrderController extends Controller
             $itemsData = [];
 
             foreach ($validated['items'] as $itemInput) {
-                $product = Product::findOrFail($itemInput['product_id']);
-                $qty = $itemInput['quantity'];
-                $subtotal = $product->base_price * $qty;
+                $product = Product::with('modules')->findOrFail($itemInput['product_id']);
+                $qty = (int) ($itemInput['quantity'] ?? 1);
+                
+                // Kalkulasi harga termasuk topping
+                $itemUnitPrice = (float) $product->base_price;
+                $toppingNotes = [];
+
+                if (!empty($itemInput['topping_ids']) && is_array($itemInput['topping_ids'])) {
+                    $toppings = $product->modules->whereIn('id', $itemInput['topping_ids']);
+                    foreach ($toppings as $top) {
+                        $itemUnitPrice += (float) $top->price;
+                        $toppingNotes[] = $top->name . ' (+Rp ' . number_format($top->price, 0, ',', '.') . ')';
+                    }
+                }
+
+                $subtotal = $itemUnitPrice * $qty;
                 $totalAmount += $subtotal;
+
+                $prodName = $product->name;
+                if (!empty($toppingNotes)) {
+                    $prodName .= ' [Topping: ' . implode(', ', $toppingNotes) . ']';
+                }
 
                 $itemsData[] = [
                     'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'price' => $product->base_price,
+                    'product_name' => $prodName,
+                    'price' => $itemUnitPrice,
                     'quantity' => $qty,
                     'subtotal' => $subtotal,
                 ];
