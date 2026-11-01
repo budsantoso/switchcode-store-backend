@@ -50,6 +50,9 @@ Route::middleware('throttle:60,1')->group(function () {
 | Auth Customer / Admin / Owner
 |--------------------------------------------------------------------------
 */
+Route::get('/auth/captcha', [AuthController::class, 'getCaptcha']);
+Route::post('/auth/request-otp', [AuthController::class, 'requestOtp']);
+Route::post('/auth/register', [AuthController::class, 'register']);
 Route::middleware('throttle:login')->post('/auth/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
